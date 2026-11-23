@@ -4,12 +4,16 @@ import {
 	ChevronDown,
 	ChevronRight,
 	Clock,
+	Cpu,
 	FileCheck2,
+	Globe,
 	Layers,
 	Play,
 	RefreshCw,
 	ShieldAlert,
+	ShieldCheck,
 	Terminal,
+	WifiOff,
 	Zap,
 } from "lucide-react";
 import type React from "react";
@@ -18,15 +22,31 @@ import { AgentRegistry } from "../agents/builtins";
 import { MeshOrchestrator } from "../sdk/orchestrator";
 import type { PermissionController } from "../sdk/permissions";
 import type { MeshPlan, VerifiableReceipt } from "../types/mesh";
+import { LlmSettingsPanel } from "./LlmSettingsPanel";
+import {
+	isLlmActive,
+	type LlmRuntimeConfig,
+	synthesizeWithOptionalLlm,
+	toSdkLlmConfig,
+} from "./llmConfig";
+import { resolveNetworkProvenance } from "./networkProvenance";
 
 interface MeshOrchestratorViewProps {
 	permissionController: PermissionController;
 	onOpenReceipt: (receipt: VerifiableReceipt) => void;
+	onVerifyReceipt: (receipt: VerifiableReceipt) => void;
+	onReceiptGenerated?: (receipt: VerifiableReceipt) => void;
+	llmConfig: LlmRuntimeConfig;
+	onLlmConfigChange: (next: LlmRuntimeConfig) => void;
 }
 
 export const MeshOrchestratorView: React.FC<MeshOrchestratorViewProps> = ({
 	permissionController,
 	onOpenReceipt,
+	onVerifyReceipt,
+	onReceiptGenerated,
+	llmConfig,
+	onLlmConfigChange,
 }) => {
 	const [userGoal, setUserGoal] = useState<string>(
 		"Audit e-commerce site for carbon emissions, third-party tracking scripts, and verify claims",
@@ -36,6 +56,12 @@ export const MeshOrchestratorView: React.FC<MeshOrchestratorViewProps> = ({
 	const [activeReceipt, setActiveReceipt] = useState<VerifiableReceipt | null>(
 		null,
 	);
+	const [llmSynthesis, setLlmSynthesis] = useState<{
+		provider: string;
+		source: string;
+		summary: string;
+		error?: string;
+	} | null>(null);
 	const [logs, setLogs] = useState<string[]>([]);
 	const [expandedTaskOutputs, setExpandedTaskOutputs] = useState<
 		Record<string, boolean>
@@ -69,6 +95,7 @@ export const MeshOrchestratorView: React.FC<MeshOrchestratorViewProps> = ({
 
 		setLogs([]);
 		setActiveReceipt(null);
+		setLlmSynthesis(null);
 		setIsExecuting(true);
 
 		addLog(
@@ -85,6 +112,7 @@ export const MeshOrchestratorView: React.FC<MeshOrchestratorViewProps> = ({
 		});
 
 		try {
+			const sdkLlmConfig = toSdkLlmConfig(llmConfig);
 			const { plan: finishedPlan, receipt } = await MeshOrchestrator.execute(
 				compiledPlan,
 				permissionController,
@@ -104,8 +132,9 @@ export const MeshOrchestratorView: React.FC<MeshOrchestratorViewProps> = ({
 							`[EXEC] Invoking capability '${updatedTask.capabilityId}' on ${updatedTask.agentId}...`,
 						);
 					} else if (updatedTask.status === "completed") {
+						const prov = resolveNetworkProvenance(updatedTask);
 						addLog(
-							`[SUCCESS] Task '${updatedTask.id}' finished in ${updatedTask.executionTimeMs}ms.`,
+							`[SUCCESS] Task '${updatedTask.id}' finished in ${updatedTask.executionTimeMs}ms [${prov?.badgeLabel ?? "CORS FALLBACK"}].`,
 						);
 					} else if (updatedTask.status === "denied") {
 						addLog(
@@ -113,13 +142,42 @@ export const MeshOrchestratorView: React.FC<MeshOrchestratorViewProps> = ({
 						);
 					}
 				},
+				sdkLlmConfig,
 			);
 
 			setCurrentPlan(finishedPlan);
 			setActiveReceipt(receipt);
+			onReceiptGenerated?.(receipt);
 			addLog(
 				`[VERIFY] Cryptographic Merkle Root generated: ${receipt.cryptographicProof.merkleRoot}`,
 			);
+
+			// Optional BYOK / Local Ollama synthesis (runs only if explicitly enabled by user)
+			if (isLlmActive(llmConfig)) {
+				addLog(
+					`[LLM] Running optional RAM-only synthesis via ${llmConfig.provider.toUpperCase()} (${llmConfig.model})...`,
+				);
+				const outputs = finishedPlan.tasks
+					.filter((t) => t.outputs)
+					.map((t) => t.outputs as Record<string, unknown>);
+				const synth = await synthesizeWithOptionalLlm(
+					llmConfig,
+					userGoal,
+					outputs,
+				);
+				setLlmSynthesis({
+					provider: synth.provider,
+					source: synth.source,
+					summary: synth.summary,
+					error: synth.error,
+				});
+				if (synth.usedLlm) {
+					addLog(`[LLM] Synthesis completed (${synth.source}).`);
+				} else if (synth.error) {
+					addLog(`[LLM] Fallback to deterministic output (${synth.error}).`);
+				}
+			}
+
 			addLog(`[DONE] Autonomous multi-agent pipeline completed successfully!`);
 		} catch (err: unknown) {
 			addLog(
@@ -138,8 +196,18 @@ export const MeshOrchestratorView: React.FC<MeshOrchestratorViewProps> = ({
 		setExpandedTaskOutputs((prev) => ({ ...prev, [taskId]: !prev[taskId] }));
 	};
 
+	const completedTasks =
+		currentPlan?.tasks.filter((t) => t.status === "completed") ?? [];
+	const liveFetchCount = completedTasks.filter(
+		(t) => resolveNetworkProvenance(t)?.badgeLabel === "LIVE NETWORK FETCH",
+	).length;
+	const corsFallbackCount = completedTasks.length - liveFetchCount;
+
 	return (
 		<div className="space-y-6">
+			{/* Optional BYOK / Local Ollama LLM Settings Panel */}
+			<LlmSettingsPanel config={llmConfig} onChange={onLlmConfigChange} />
+
 			{/* Input panel */}
 			<div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
 				<div className="flex items-center justify-between mb-3">
@@ -197,7 +265,7 @@ export const MeshOrchestratorView: React.FC<MeshOrchestratorViewProps> = ({
 						) : (
 							<>
 								<Play className="w-4 h-4 fill-slate-950" />
-								Compile & Run DAG
+								Compile &amp; Run DAG
 							</>
 						)}
 					</button>
@@ -207,29 +275,81 @@ export const MeshOrchestratorView: React.FC<MeshOrchestratorViewProps> = ({
 			{/* DAG Visualization and Execution Progress */}
 			{currentPlan && (
 				<div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg">
-					<div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
-						<div className="flex items-center gap-2">
-							<Layers className="w-4 h-4 text-cyan-400" />
-							<h3 className="text-sm font-bold text-white">
-								Multi-Agent Dependency DAG ({currentPlan.tasks.length} Nodes)
-							</h3>
+					<div className="flex flex-wrap items-center justify-between gap-3 pb-4 mb-4 border-b border-slate-800">
+						<div className="flex flex-wrap items-center gap-3">
+							<div className="flex items-center gap-2">
+								<Layers className="w-4 h-4 text-cyan-400" />
+								<h3 className="text-sm font-bold text-white">
+									Multi-Agent Dependency DAG ({currentPlan.tasks.length} Nodes)
+								</h3>
+							</div>
+
+							{/* Network Provenance Telemetry Summary */}
+							{completedTasks.length > 0 && (
+								<div className="flex items-center gap-1.5 text-[10px] font-mono">
+									<span className="px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+										<Globe className="w-3 h-3" />
+										{liveFetchCount} LIVE NETWORK FETCH
+									</span>
+									<span className="px-2 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30 flex items-center gap-1">
+										<WifiOff className="w-3 h-3" />
+										{corsFallbackCount} CORS FALLBACK
+									</span>
+								</div>
+							)}
 						</div>
+
 						{activeReceipt && (
-							<button
-								onClick={() => onOpenReceipt(activeReceipt)}
-								className="px-3 py-1.5 rounded-md text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 transition flex items-center gap-1.5"
-							>
-								<FileCheck2 className="w-3.5 h-3.5" />
-								View Cryptographic Proof Receipt
-							</button>
+							<div className="flex flex-wrap items-center gap-2">
+								<button
+									onClick={() => onVerifyReceipt(activeReceipt)}
+									className="px-3 py-1.5 rounded-md text-xs font-semibold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 hover:bg-cyan-500/30 transition flex items-center gap-1.5"
+								>
+									<ShieldCheck className="w-3.5 h-3.5" />
+									Verify &amp; Tamper Test
+								</button>
+								<button
+									onClick={() => onOpenReceipt(activeReceipt)}
+									className="px-3 py-1.5 rounded-md text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/30 transition flex items-center gap-1.5"
+								>
+									<FileCheck2 className="w-3.5 h-3.5" />
+									View Cryptographic Proof Receipt
+								</button>
+							</div>
 						)}
 					</div>
+
+					{/* Optional LLM Synthesis Readout */}
+					{llmSynthesis && (
+						<div className="mb-4 p-3.5 rounded-lg bg-cyan-950/25 border border-cyan-500/30 text-xs">
+							<div className="flex items-center justify-between gap-2 mb-1">
+								<span className="font-bold text-cyan-300 flex items-center gap-1.5">
+									<Cpu className="w-3.5 h-3.5" />
+									Optional LLM Synthesis ({llmSynthesis.provider.toUpperCase()})
+								</span>
+								<span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+									{llmSynthesis.source}
+								</span>
+							</div>
+							{llmSynthesis.summary ? (
+								<p className="text-slate-200 leading-relaxed">
+									{llmSynthesis.summary}
+								</p>
+							) : (
+								<p className="text-amber-300 font-mono text-[11px]">
+									Provider unreachable ({llmSynthesis.error}) — deterministic
+									WebMCP results preserved intact.
+								</p>
+							)}
+						</div>
+					)}
 
 					{/* Nodes list / Flow */}
 					<div className="space-y-3">
 						{currentPlan.tasks.map((task, index) => {
 							const registered = AgentRegistry.get(task.agentId);
 							const isExpanded = expandedTaskOutputs[task.id];
+							const provenance = resolveNetworkProvenance(task);
 
 							return (
 								<div
@@ -267,13 +387,31 @@ export const MeshOrchestratorView: React.FC<MeshOrchestratorViewProps> = ({
 											)}
 
 											<div>
-												<div className="flex items-center gap-2">
+												<div className="flex flex-wrap items-center gap-2">
 													<h4 className="text-xs font-bold text-white">
 														{task.title}
 													</h4>
 													<span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-800 text-slate-400">
 														{registered?.card.name || task.agentId}
 													</span>
+													{/* Transparent Network Provenance Badge */}
+													{provenance && (
+														<span
+															title={provenance.sourceDetail}
+															className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold border inline-flex items-center gap-1 ${
+																provenance.mode === "live_network_fetch"
+																	? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+																	: "bg-amber-500/20 text-amber-300 border-amber-500/40"
+															}`}
+														>
+															{provenance.mode === "live_network_fetch" ? (
+																<Globe className="w-3 h-3" />
+															) : (
+																<WifiOff className="w-3 h-3" />
+															)}
+															{provenance.badgeLabel}
+														</span>
+													)}
 												</div>
 												<p className="text-[11px] text-slate-400 mt-0.5">
 													{task.description}
@@ -281,7 +419,7 @@ export const MeshOrchestratorView: React.FC<MeshOrchestratorViewProps> = ({
 											</div>
 										</div>
 
-										<div className="flex items-center gap-3">
+										<div className="flex flex-wrap items-center gap-2.5">
 											{/* Permissions tags */}
 											{task.requiredPermissions.map((perm) => (
 												<span
@@ -335,9 +473,16 @@ export const MeshOrchestratorView: React.FC<MeshOrchestratorViewProps> = ({
 									{/* Expandable output display */}
 									{isExpanded && task.outputs && (
 										<div className="mt-3 pt-3 border-t border-slate-800/80">
-											<span className="text-[10px] font-mono text-slate-500 uppercase block mb-1">
-												Execution Result Vector:
-											</span>
+											<div className="flex items-center justify-between mb-1">
+												<span className="text-[10px] font-mono text-slate-500 uppercase">
+													Execution Result Vector:
+												</span>
+												{provenance && (
+													<span className="text-[10px] font-mono text-slate-400">
+														{provenance.sourceDetail}
+													</span>
+												)}
+											</div>
 											<pre className="bg-slate-900 p-2.5 rounded text-[11px] font-mono text-emerald-300 overflow-x-auto max-h-48 border border-slate-800">
 												{JSON.stringify(task.outputs, null, 2)}
 											</pre>
@@ -366,8 +511,8 @@ export const MeshOrchestratorView: React.FC<MeshOrchestratorViewProps> = ({
 				<div className="space-y-1 text-xs max-h-48 overflow-y-auto pr-1">
 					{logs.length === 0 ? (
 						<span className="text-slate-600 italic">
-							Mesh idle. Enter a prompt above and click "Compile & Run DAG" to
-							start autonomous orchestration.
+							Mesh idle. Enter a prompt above and click &quot;Compile &amp; Run
+							DAG&quot; to start autonomous orchestration.
 						</span>
 					) : (
 						logs.map((log, i) => (
@@ -380,7 +525,7 @@ export const MeshOrchestratorView: React.FC<MeshOrchestratorViewProps> = ({
 											? "text-amber-400"
 											: log.includes("[ERROR]")
 												? "text-rose-400"
-												: log.includes("[EXEC]")
+												: log.includes("[EXEC]") || log.includes("[LLM]")
 													? "text-cyan-400"
 													: "text-slate-400"
 								}

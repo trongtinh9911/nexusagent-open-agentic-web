@@ -4,18 +4,26 @@ import {
 	Code2,
 	Compass,
 	FileJson,
+	Globe,
 	Leaf,
 	Lock,
 	PlusCircle,
+	Radio,
+	RefreshCw,
 	Search,
 	ShieldCheck,
+	WifiOff,
 	X,
 } from "lucide-react";
 import type React from "react";
 import { useState } from "react";
 import { AgentRegistry } from "../agents/builtins";
-import { AgentCardValidator } from "../sdk/validator";
 import type { AgentCard } from "../types/agent-card";
+import {
+	discoverLiveManifest,
+	type ManifestDiscoveryResult,
+	SELF_MANIFEST_PATH,
+} from "./discoverManifest";
 
 interface DiscoveryHubProps {
 	onAgentAdded?: () => void;
@@ -27,10 +35,12 @@ export const DiscoveryHub: React.FC<DiscoveryHubProps> = ({ onAgentAdded }) => {
 	const [selectedTag, setSelectedTag] = useState<string>("all");
 	const [inspectingCard, setInspectingCard] = useState<AgentCard | null>(null);
 
-	// Import state
+	// Import / live discovery state
 	const [importUrl, setImportUrl] = useState("");
-	const [importError, setImportError] = useState("");
-	const [importSuccess, setImportSuccess] = useState("");
+	const [isDiscoveringSelf, setIsDiscoveringSelf] = useState(false);
+	const [isDiscoveringUrl, setIsDiscoveringUrl] = useState(false);
+	const [discoveryResult, setDiscoveryResult] =
+		useState<ManifestDiscoveryResult | null>(null);
 
 	const allTags = [
 		"all",
@@ -38,6 +48,7 @@ export const DiscoveryHub: React.FC<DiscoveryHubProps> = ({ onAgentAdded }) => {
 		"privacy",
 		"consensus",
 		"research",
+		"orchestrator",
 		"mozilla-standard",
 		"mit-nanda",
 	];
@@ -54,74 +65,50 @@ export const DiscoveryHub: React.FC<DiscoveryHubProps> = ({ onAgentAdded }) => {
 		return matchesSearch && matchesTag;
 	});
 
-	const handleSimulatedImport = () => {
-		setImportError("");
-		setImportSuccess("");
+	const handleDiscoverSelfManifest = async () => {
+		setIsDiscoveringSelf(true);
+		setDiscoveryResult(null);
+		try {
+			const res = await discoverLiveManifest(SELF_MANIFEST_PATH, {
+				allowCorsFallback: false,
+			});
+			setDiscoveryResult(res);
+			if (res.ok) {
+				setAgents(AgentRegistry.getAll());
+				onAgentAdded?.();
+			}
+		} finally {
+			setIsDiscoveringSelf(false);
+		}
+	};
 
+	const handleDiscoverUrl = async () => {
+		setDiscoveryResult(null);
 		if (!importUrl.trim()) {
-			setImportError("Please enter a URL or DID URI.");
+			setDiscoveryResult({
+				ok: false,
+				mode: "CORS FALLBACK",
+				url: "",
+				latencyMs: 0,
+				error: "Please enter a URL or /.well-known/agent.json endpoint.",
+				notice: "No URL provided.",
+			});
 			return;
 		}
 
+		setIsDiscoveringUrl(true);
 		try {
-			// Simulate fetching from /.well-known/agent.json
-			const domain = importUrl.replace(/^https?:\/\//, "").split("/")[0];
-			const newCard: AgentCard = {
-				schemaVersion: "1.0.0",
-				id: `did:web:${domain}:agent:custom`,
-				name: `${domain.toUpperCase()} Autonomous Agent`,
-				version: "1.0.0",
-				description: `Discovered live web agent from ${domain} publishing standard capability cards.`,
-				icon: "brain-circuit",
-				tags: ["custom", "discovered-live", "webmcp"],
-				provider: {
-					name: `${domain} Webmaster`,
-					url: importUrl.startsWith("http") ? importUrl : `https://${domain}`,
-				},
-				protocols: ["webmcp/1.0", "agent-card/v1"],
-				security: {
-					sandboxLevel: "isolated",
-					reputationScore: 0.95,
-					provenance: {
-						originUrl: importUrl.startsWith("http")
-							? importUrl
-							: `https://${domain}/.well-known/agent.json`,
-						publishedAt: new Date().toISOString(),
-						w3cDid: `did:web:${domain}`,
-					},
-				},
-				capabilities: [
-					{
-						id: "custom_query",
-						name: "Domain Specific Query",
-						description: `Interacts with ${domain} web services natively.`,
-						inputSchema: {
-							type: "object",
-							properties: { query: { type: "string" } },
-						},
-						permissionsRequired: ["network:fetch"],
-						pricing: { model: "free" },
-					},
-				],
-			};
-
-			const val = AgentCardValidator.validate(newCard);
-			if (!val.isValid) {
-				setImportError(`Invalid manifest: ${val.errors.join(", ")}`);
-				return;
+			const res = await discoverLiveManifest(importUrl, {
+				allowCorsFallback: true,
+			});
+			setDiscoveryResult(res);
+			if (res.ok) {
+				setAgents(AgentRegistry.getAll());
+				setImportUrl("");
+				onAgentAdded?.();
 			}
-
-			AgentRegistry.register(newCard);
-			setAgents(AgentRegistry.getAll());
-			setImportSuccess(
-				`Successfully discovered and registered ${newCard.name} into mesh!`,
-			);
-			setImportUrl("");
-			onAgentAdded?.();
-		} catch (err: unknown) {
-			setImportError(
-				`Discovery failed: ${err instanceof Error ? err.message : String(err)}`,
-			);
+		} finally {
+			setIsDiscoveringUrl(false);
 		}
 	};
 
@@ -133,7 +120,7 @@ export const DiscoveryHub: React.FC<DiscoveryHubProps> = ({ onAgentAdded }) => {
 					<div>
 						<h2 className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
 							<Compass className="w-4 h-4 text-emerald-400" />
-							Decentralized Agent Registry & Discovery Hub
+							Decentralized Agent Registry &amp; Discovery Hub
 						</h2>
 						<p className="text-xs text-slate-400 mt-0.5">
 							Query open agents declaring W3C DIDs and{" "}
@@ -141,35 +128,94 @@ export const DiscoveryHub: React.FC<DiscoveryHubProps> = ({ onAgentAdded }) => {
 						</p>
 					</div>
 
-					{/* Quick Import Box */}
-					<div className="flex items-center gap-2 w-full md:w-auto">
+					{/* 1-Click Self-Manifest + URL Discovery Controls */}
+					<div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+						<button
+							onClick={handleDiscoverSelfManifest}
+							disabled={isDiscoveringSelf}
+							className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition flex items-center gap-1.5 shrink-0 shadow-sm"
+						>
+							{isDiscoveringSelf ? (
+								<RefreshCw className="w-3.5 h-3.5 animate-spin" />
+							) : (
+								<Radio className="w-3.5 h-3.5" />
+							)}
+							Discover Live Self-Manifest
+						</button>
+
 						<input
 							type="text"
 							value={importUrl}
 							onChange={(e) => setImportUrl(e.target.value)}
+							onKeyDown={(e) => e.key === "Enter" && handleDiscoverUrl()}
 							placeholder="https://example.org/.well-known/agent.json"
 							className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500 font-mono w-64"
 						/>
 						<button
-							onClick={handleSimulatedImport}
+							onClick={handleDiscoverUrl}
+							disabled={isDiscoveringUrl}
 							className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-600 hover:bg-cyan-500 text-white transition flex items-center gap-1.5 shrink-0"
 						>
-							<PlusCircle className="w-3.5 h-3.5" />
+							{isDiscoveringUrl ? (
+								<RefreshCw className="w-3.5 h-3.5 animate-spin" />
+							) : (
+								<PlusCircle className="w-3.5 h-3.5" />
+							)}
 							Discover URL
 						</button>
 					</div>
 				</div>
 
-				{importSuccess && (
-					<div className="p-2.5 mb-3 bg-emerald-950/40 border border-emerald-500/40 rounded-lg text-xs text-emerald-300 flex items-center gap-2">
-						<Check className="w-3.5 h-3.5" />
-						{importSuccess}
-					</div>
-				)}
-				{importError && (
-					<div className="p-2.5 mb-3 bg-rose-950/40 border border-rose-500/40 rounded-lg text-xs text-rose-300 flex items-center gap-2">
-						<X className="w-3.5 h-3.5" />
-						{importError}
+				{/* Live Discovery Outcome Banner */}
+				{discoveryResult && (
+					<div
+						className={`p-3 mb-3 rounded-lg border text-xs flex flex-wrap items-center justify-between gap-2 ${
+							discoveryResult.ok
+								? discoveryResult.mode === "LIVE NETWORK FETCH"
+									? "bg-emerald-950/40 border-emerald-500/40 text-emerald-200"
+									: "bg-amber-950/35 border-amber-500/40 text-amber-200"
+								: "bg-rose-950/40 border-rose-500/40 text-rose-200"
+						}`}
+					>
+						<div className="flex items-center gap-2">
+							{discoveryResult.ok ? (
+								<Check className="w-4 h-4 shrink-0" />
+							) : (
+								<X className="w-4 h-4 shrink-0" />
+							)}
+							<span className="font-mono text-[11px]">
+								{discoveryResult.ok
+									? discoveryResult.notice
+									: discoveryResult.error || discoveryResult.notice}
+							</span>
+						</div>
+
+						<div className="flex items-center gap-2 shrink-0">
+							<span
+								className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold border flex items-center gap-1 ${
+									discoveryResult.mode === "LIVE NETWORK FETCH"
+										? "bg-emerald-500/20 text-emerald-300 border-emerald-500/40"
+										: "bg-amber-500/20 text-amber-300 border-amber-500/40"
+								}`}
+							>
+								{discoveryResult.mode === "LIVE NETWORK FETCH" ? (
+									<Globe className="w-3 h-3" />
+								) : (
+									<WifiOff className="w-3 h-3" />
+								)}
+								{discoveryResult.mode}
+							</span>
+							{discoveryResult.card && (
+								<button
+									onClick={() =>
+										setInspectingCard(discoveryResult.card || null)
+									}
+									className="text-[11px] underline text-cyan-300 hover:text-cyan-200"
+								>
+									Inspect JSON
+								</button>
+							)}
+						</div>
 					</div>
 				)}
 

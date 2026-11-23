@@ -4,20 +4,27 @@ import { AgentRegistry } from "./agents/builtins";
 import { DiscoveryHub } from "./components/DiscoveryHub";
 import { EmbedCodeModal } from "./components/EmbedCodeModal";
 import { ExecutionReceiptModal } from "./components/ExecutionReceiptModal";
+import { getRamLlmConfig, type LlmRuntimeConfig } from "./components/llmConfig";
 import { ManifestStudio } from "./components/ManifestStudio";
 import { MeshOrchestratorView } from "./components/MeshOrchestratorView";
-import { Navigation } from "./components/Navigation";
+import { type AppTab, Navigation } from "./components/Navigation";
+import { ReceiptVerifierView } from "./components/ReceiptVerifierView";
 import { SecurityGateModal } from "./components/SecurityGateModal";
 import { PermissionController } from "./sdk/permissions";
 import type { VerifiableReceipt } from "./types/mesh";
 import type { PermissionDecision, PermissionRequest } from "./types/security";
 
 export function App() {
-	const [activeTab, setActiveTab] = useState<
-		"orchestrator" | "discovery" | "studio" | "sdk"
-	>("orchestrator");
+	const [activeTab, setActiveTab] = useState<AppTab>("orchestrator");
 	const [activeReceipt, setActiveReceipt] = useState<VerifiableReceipt | null>(
 		null,
+	);
+	const [latestMeshReceipt, setLatestMeshReceipt] =
+		useState<VerifiableReceipt | null>(null);
+	const [verifierSeedReceipt, setVerifierSeedReceipt] =
+		useState<VerifiableReceipt | null>(null);
+	const [llmConfig, setLlmConfig] = useState<LlmRuntimeConfig>(() =>
+		getRamLlmConfig(),
 	);
 	const [isEmbedModalOpen, setIsEmbedModalOpen] = useState(false);
 	const [registeredCount, setRegisteredCount] = useState(
@@ -55,6 +62,11 @@ export function App() {
 		setRegisteredCount(AgentRegistry.getAll().length);
 	};
 
+	const handleJumpToVerifier = (receipt: VerifiableReceipt) => {
+		setVerifierSeedReceipt(receipt);
+		setActiveTab("verifier");
+	};
+
 	return (
 		<div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
 			{/* Top Header */}
@@ -63,6 +75,7 @@ export function App() {
 				setActiveTab={setActiveTab}
 				registeredAgentsCount={registeredCount}
 				onOpenEmbedModal={() => setIsEmbedModalOpen(true)}
+				llmConfig={llmConfig}
 			/>
 
 			{/* Main Content Area */}
@@ -71,6 +84,17 @@ export function App() {
 					<MeshOrchestratorView
 						permissionController={permissionController}
 						onOpenReceipt={(r) => setActiveReceipt(r)}
+						onVerifyReceipt={handleJumpToVerifier}
+						onReceiptGenerated={(r) => setLatestMeshReceipt(r)}
+						llmConfig={llmConfig}
+						onLlmConfigChange={setLlmConfig}
+					/>
+				)}
+
+				{activeTab === "verifier" && (
+					<ReceiptVerifierView
+						initialReceipt={verifierSeedReceipt}
+						latestMeshReceipt={latestMeshReceipt}
 					/>
 				)}
 
@@ -87,7 +111,7 @@ export function App() {
 						<div>
 							<h2 className="text-lg font-bold text-white flex items-center gap-2">
 								<BookOpen className="w-5 h-5 text-cyan-400" />
-								Open Agentic Web Specification & SDK Reference
+								Open Agentic Web Specification &amp; SDK Reference
 							</h2>
 							<p className="text-xs text-slate-400 mt-1">
 								Formal specification submitted to the Open Agentic Web Challenge
@@ -174,7 +198,7 @@ Cryptographic Merkle Proof & Verifiable Execution Receipt`}
 					<div className="flex items-center gap-4 text-slate-400">
 						<span>Cognizant AI Lab</span>
 						<span>•</span>
-						<span>Mozilla Otari & Privacy</span>
+						<span>Mozilla Otari &amp; Privacy</span>
 						<span>•</span>
 						<span>MIT Media Lab NANDA</span>
 						<span>•</span>
@@ -192,6 +216,7 @@ Cryptographic Merkle Proof & Verifiable Execution Receipt`}
 			<ExecutionReceiptModal
 				receipt={activeReceipt}
 				onClose={() => setActiveReceipt(null)}
+				onOpenVerifier={handleJumpToVerifier}
 			/>
 
 			<EmbedCodeModal

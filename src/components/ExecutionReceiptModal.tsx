@@ -13,11 +13,13 @@ import type { VerifiableReceipt } from "../types/mesh";
 interface ExecutionReceiptModalProps {
 	receipt: VerifiableReceipt | null;
 	onClose: () => void;
+	onOpenVerifier?: (receipt: VerifiableReceipt) => void;
 }
 
 export const ExecutionReceiptModal: React.FC<ExecutionReceiptModalProps> = ({
 	receipt,
 	onClose,
+	onOpenVerifier,
 }) => {
 	const [copied, setCopied] = React.useState(false);
 
@@ -171,7 +173,19 @@ export const ExecutionReceiptModal: React.FC<ExecutionReceiptModalProps> = ({
 					<span className="text-[11px] text-slate-500 flex items-center gap-1">
 						<Hash className="w-3.5 h-3.5" /> Immutable Verification Record
 					</span>
-					<div className="flex items-center gap-2">
+					<div className="flex flex-wrap items-center gap-2">
+						{onOpenVerifier && (
+							<button
+								onClick={() => {
+									onOpenVerifier(receipt);
+									onClose();
+								}}
+								className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border border-cyan-500/40 transition flex items-center gap-1.5"
+							>
+								<ShieldCheck className="w-3.5 h-3.5" />
+								Verify in Receipt Verifier
+							</button>
+						)}
 						<button
 							onClick={handleCopy}
 							className="px-3 py-1.5 rounded-lg text-xs font-medium bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5"

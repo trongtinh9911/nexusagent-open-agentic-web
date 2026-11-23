@@ -5,15 +5,25 @@ import {
 	FileCode2,
 	Network,
 	ShieldAlert,
+	ShieldCheck,
 	Sparkles,
 } from "lucide-react";
 import type React from "react";
+import type { LlmRuntimeConfig } from "./llmConfig";
+
+export type AppTab =
+	| "orchestrator"
+	| "verifier"
+	| "discovery"
+	| "studio"
+	| "sdk";
 
 interface NavigationProps {
-	activeTab: "orchestrator" | "discovery" | "studio" | "sdk";
-	setActiveTab: (tab: "orchestrator" | "discovery" | "studio" | "sdk") => void;
+	activeTab: AppTab;
+	setActiveTab: (tab: AppTab) => void;
 	registeredAgentsCount: number;
 	onOpenEmbedModal: () => void;
+	llmConfig?: LlmRuntimeConfig;
 }
 
 export const Navigation: React.FC<NavigationProps> = ({
@@ -21,11 +31,19 @@ export const Navigation: React.FC<NavigationProps> = ({
 	setActiveTab,
 	registeredAgentsCount,
 	onOpenEmbedModal,
+	llmConfig,
 }) => {
+	const llmBadgeText =
+		!llmConfig || llmConfig.provider === "none"
+			? "Keyless Local"
+			: llmConfig.provider === "ollama"
+				? `Ollama: ${llmConfig.model}`
+				: `BYOK RAM: ${llmConfig.provider.toUpperCase()}`;
+
 	return (
 		<header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-40">
 			{/* Hackathon banner */}
-			<div className="bg-gradient-to-r from-emerald-950/60 via-slate-900 to-cyan-950/60 border-b border-slate-800/80 px-4 py-1.5 text-xs flex items-center justify-between">
+			<div className="bg-gradient-to-r from-emerald-950/60 via-slate-900 to-cyan-950/60 border-b border-slate-800/80 px-4 py-1.5 text-xs flex flex-wrap items-center justify-between gap-2">
 				<div className="flex items-center gap-2 text-slate-300">
 					<span className="flex h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
 					<span className="font-semibold text-emerald-400">
@@ -34,10 +52,9 @@ export const Navigation: React.FC<NavigationProps> = ({
 					<span className="text-slate-500">•</span>
 					<span>Cognizant AI Lab × Mozilla × AWS × MIT NANDA</span>
 				</div>
-				<div className="flex items-center gap-4 text-slate-400">
+				<div className="flex flex-wrap items-center gap-3 text-slate-400">
 					<span className="flex items-center gap-1">
-						<Cpu className="w-3.5 h-3.5 text-cyan-400" /> WebMCP In-Browser
-						Runtime
+						<Cpu className="w-3.5 h-3.5 text-cyan-400" /> {llmBadgeText}
 					</span>
 					<span className="flex items-center gap-1">
 						<ShieldAlert className="w-3.5 h-3.5 text-emerald-400" /> Mozilla
@@ -66,13 +83,13 @@ export const Navigation: React.FC<NavigationProps> = ({
 							</span>
 						</div>
 						<p className="text-xs text-slate-400">
-							Decentralized Web Agent Mesh & Verification Protocol
+							Decentralized Web Agent Mesh &amp; Verification Protocol
 						</p>
 					</div>
 				</div>
 
 				{/* Tab buttons */}
-				<div className="flex items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800">
+				<div className="flex flex-wrap items-center gap-1 bg-slate-900 p-1 rounded-lg border border-slate-800">
 					<button
 						onClick={() => setActiveTab("orchestrator")}
 						className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
@@ -83,6 +100,18 @@ export const Navigation: React.FC<NavigationProps> = ({
 					>
 						<Sparkles className="w-3.5 h-3.5" />
 						Mesh Orchestrator
+					</button>
+
+					<button
+						onClick={() => setActiveTab("verifier")}
+						className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+							activeTab === "verifier"
+								? "bg-emerald-500 text-slate-950 font-semibold shadow-sm"
+								: "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+						}`}
+					>
+						<ShieldCheck className="w-3.5 h-3.5" />
+						Receipt Verifier
 					</button>
 
 					<button
@@ -118,7 +147,7 @@ export const Navigation: React.FC<NavigationProps> = ({
 						}`}
 					>
 						<Code2 className="w-3.5 h-3.5" />
-						Embed & Spec
+						Embed &amp; Spec
 					</button>
 				</div>
 
