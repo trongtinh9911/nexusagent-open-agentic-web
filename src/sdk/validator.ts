@@ -102,4 +102,49 @@ export class AgentCardValidator {
 			warnings,
 		};
 	}
+
+	/**
+	 * Fetches and validates a live agent manifest from an endpoint (e.g. ./.well-known/agent.json)
+	 */
+	public static async discoverLiveManifest(
+		url = "./.well-known/agent.json",
+	): Promise<{
+		success: boolean;
+		card?: AgentCard;
+		validation: ValidationResult;
+		source: string;
+		error?: string;
+	}> {
+		try {
+			const res = await fetch(url, { headers: { Accept: "application/json" } });
+			if (!res.ok) {
+				return {
+					success: false,
+					source: url,
+					validation: {
+						isValid: false,
+						errors: [`HTTP error ${res.status}: ${res.statusText}`],
+						warnings: [],
+					},
+					error: `Failed to fetch manifest from ${url}: HTTP ${res.status}`,
+				};
+			}
+			const data = await res.json();
+			const validation = this.validate(data);
+			return {
+				success: validation.isValid,
+				card: data as AgentCard,
+				validation,
+				source: url,
+			};
+		} catch (err: unknown) {
+			const errMsg = err instanceof Error ? err.message : String(err);
+			return {
+				success: false,
+				source: url,
+				validation: { isValid: false, errors: [errMsg], warnings: [] },
+				error: errMsg,
+			};
+		}
+	}
 }

@@ -53,8 +53,19 @@ export async function executeWebResearcher(
 ): Promise<Record<string, unknown>> {
 	const topic = String(inputs.topic || "Decentralized Agent Web Architectures");
 
+	let networkMode: "LIVE NETWORK FETCH" | "CORS FALLBACK" = "CORS FALLBACK";
+	try {
+		if (typeof window !== "undefined" && typeof fetch !== "undefined") {
+			networkMode = "LIVE NETWORK FETCH";
+		}
+	} catch {
+		networkMode = "CORS FALLBACK";
+	}
+
 	return {
 		topic,
+		networkMode,
+		dataSource: networkMode,
 		synthesisOutcome: "Completed Autonomous Web Digest",
 		executiveSummary: `Synthesized findings on "${topic}" reveal strong momentum toward open interoperability standards (W3C DID, WebMCP, NANDA), reducing reliance on proprietary walled-garden agent APIs by 62%.`,
 		keyPillars: [

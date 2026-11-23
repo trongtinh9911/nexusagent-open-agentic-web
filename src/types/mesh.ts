@@ -21,6 +21,8 @@ export interface MeshTask {
 	executionTimeMs?: number;
 	error?: string;
 	requiredPermissions: PermissionType[];
+	networkMode?: "LIVE NETWORK FETCH" | "CORS FALLBACK";
+	dataSource?: "LIVE NETWORK FETCH" | "CORS FALLBACK";
 }
 
 export interface MeshPlan {

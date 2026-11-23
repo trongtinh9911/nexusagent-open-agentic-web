@@ -102,4 +102,54 @@ export class AgentCrypto {
 			taskReceipts,
 		};
 	}
+
+	/**
+	 * Verifies whether an execution receipt is authentic and untampered
+	 */
+	public static async verifyReceipt(receipt: VerifiableReceipt): Promise<{
+		valid: boolean;
+		reason?: string;
+		computedMerkleRoot?: string;
+		computedSignature?: string;
+	}> {
+		if (!receipt || !receipt.cryptographicProof || !receipt.taskReceipts) {
+			return {
+				valid: false,
+				reason:
+					"Malformed receipt structure: missing cryptographic proof or task receipts.",
+			};
+		}
+
+		// 1. Recalculate leaf hashes
+		const taskHashes = receipt.taskReceipts.map(
+			(r) => `${r.taskId}:${r.inputHash}:${r.outputHash}`,
+		);
+
+		// 2. Compute Merkle root
+		const computedMerkleRoot = await this.calculateMerkleRoot(taskHashes);
+		if (computedMerkleRoot !== receipt.cryptographicProof.merkleRoot) {
+			return {
+				valid: false,
+				reason: `Merkle root mismatch! Expected '${receipt.cryptographicProof.merkleRoot}', but calculated '${computedMerkleRoot}'. Task data or output was tampered.`,
+				computedMerkleRoot,
+			};
+		}
+
+		// 3. Verify signature
+		const computedSignature = `sig_ed25519_${await this.sha256(computedMerkleRoot + receipt.clientDid).then((h) => h.slice(0, 64))}`;
+		if (computedSignature !== receipt.cryptographicProof.signature) {
+			return {
+				valid: false,
+				reason: `Signature mismatch! Computed '${computedSignature}', but receipt has '${receipt.cryptographicProof.signature}'.`,
+				computedMerkleRoot,
+				computedSignature,
+			};
+		}
+
+		return {
+			valid: true,
+			computedMerkleRoot,
+			computedSignature,
+		};
+	}
 }

@@ -1,0 +1,54 @@
+{
+	"networkVersion": "1.0.0",
+	"name": "Open Agentic Web Directory & Federation Mesh",
+	"updatedAt": "2026-11-23T14:30:00Z",
+	"protocol": "webmcp/1.0",
+	"consensus": "nanda/0.2",
+	"nodes": [
+		{
+			"id": "did:web:nexusagent.org:agents:mesh-coordinator",
+			"name": "NexusAgent Mesh Coordinator",
+			"manifestUrl": "./.well-known/agent.json",
+			"category": "Orchestrator",
+			"trustScore": 0.99,
+			"sandbox": "isolated",
+			"protocols": ["webmcp/1.0", "nanda/0.2", "w3c-did/v1"]
+		},
+		{
+			"id": "did:web:eco-tracker.org",
+			"name": "EcoTracker Social Good Agent",
+			"manifestUrl": "https://eco-tracker.org/.well-known/agent.json",
+			"category": "Sustainability",
+			"trustScore": 0.98,
+			"sandbox": "strict",
+			"protocols": ["webmcp/1.0", "nanda/0.2", "w3c-did/v1"]
+		},
+		{
+			"id": "did:web:privacy-shield.org",
+			"name": "PrivacyShield Guardian Agent",
+			"manifestUrl": "https://privacy-shield.org/.well-known/agent.json",
+			"category": "Security & Privacy",
+			"trustScore": 0.97,
+			"sandbox": "strict",
+			"protocols": ["webmcp/1.0", "nanda/0.2", "w3c-did/v1"]
+		},
+		{
+			"id": "did:web:truth-consensus.org",
+			"name": "TruthMesh Fact Checker",
+			"manifestUrl": "https://truth-consensus.org/.well-known/agent.json",
+			"category": "Consensus & Verification",
+			"trustScore": 0.95,
+			"sandbox": "strict",
+			"protocols": ["webmcp/1.0", "nanda/0.2", "w3c-did/v1"]
+		},
+		{
+			"id": "did:web:cognizant-research.org",
+			"name": "Cognizant Web Intelligence Agent",
+			"manifestUrl": "https://cognizant-research.org/.well-known/agent.json",
+			"category": "Research & Synthesis",
+			"trustScore": 0.96,
+			"sandbox": "strict",
+			"protocols": ["webmcp/1.0", "nanda/0.2", "w3c-did/v1"]
+		}
+	]
+}

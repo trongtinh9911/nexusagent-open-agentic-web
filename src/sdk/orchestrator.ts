@@ -7,6 +7,7 @@ import type {
 	VerifiableReceipt,
 } from "../types/mesh";
 import { AgentCrypto } from "./crypto";
+import type { LLMConfig } from "./llm-provider";
 import type { PermissionController } from "./permissions";
 import { WebMCPClient } from "./web-mcp";
 
@@ -162,6 +163,7 @@ export class MeshOrchestrator {
 		plan: MeshPlan,
 		permissions: PermissionController,
 		onStepUpdate?: (task: MeshTask) => void,
+		_llmConfig?: LLMConfig,
 	): Promise<{ plan: MeshPlan; receipt: VerifiableReceipt }> {
 		const executedTasks: {
 			taskId: string;
@@ -234,6 +236,12 @@ export class MeshOrchestrator {
 			if (resp.success) {
 				task.status = "completed";
 				task.outputs = resp.outputs;
+				if (resp.outputs?.networkMode) {
+					task.networkMode = resp.outputs.networkMode as
+						| "LIVE NETWORK FETCH"
+						| "CORS FALLBACK";
+					task.dataSource = task.networkMode;
+				}
 				contextStore[task.id] = resp.outputs || {};
 			} else {
 				task.status = "failed";
