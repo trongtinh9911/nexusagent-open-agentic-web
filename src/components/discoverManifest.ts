@@ -1,6 +1,18 @@
 import { AgentRegistry } from "../agents/builtins";
+import { LIVE_PEER_NODES, PEER_ENDPOINTS } from "../sdk/liveFetcher";
 import { AgentCardValidator } from "../sdk/validator";
 import type { AgentCard } from "../types/agent-card";
+
+export { LIVE_PEER_NODES, PEER_ENDPOINTS };
+
+export interface PeerMeshDiscoverySummary {
+	ok: boolean;
+	liveCount: number;
+	totalCount: number;
+	totalLatencyMs: number;
+	results: ManifestDiscoveryResult[];
+	notice: string;
+}
 
 export interface ManifestDiscoveryResult {
 	ok: boolean;
@@ -207,4 +219,37 @@ export async function discoverLiveManifest(
 			notice: `CORS FALLBACK (${latencyMs}ms): Browser blocked direct fetch to ${resolvedUrl} (${errMsg}). Registered transparent preview card.`,
 		};
 	}
+}
+
+/**
+ * Fetches and validates all live cross-origin HTTPS peer manifests from nexusagent-peer-nodes.
+ */
+export async function discoverPeerMeshNodes(options?: {
+	fetchImpl?: typeof fetch;
+}): Promise<PeerMeshDiscoverySummary> {
+	const start = performance.now();
+	const results = await Promise.all(
+		LIVE_PEER_NODES.map((peer) =>
+			discoverLiveManifest(peer.manifestUrl, {
+				allowCorsFallback: false,
+				fetchImpl: options?.fetchImpl,
+			}),
+		),
+	);
+	const totalLatencyMs = Math.max(1, Math.round(performance.now() - start));
+	const liveCount = results.filter(
+		(r) => r.ok && r.mode === "LIVE NETWORK FETCH",
+	).length;
+
+	return {
+		ok: liveCount > 0,
+		liveCount,
+		totalCount: LIVE_PEER_NODES.length,
+		totalLatencyMs,
+		results,
+		notice:
+			liveCount === LIVE_PEER_NODES.length
+				? `LIVE NETWORK FETCH (HTTP 200, ${totalLatencyMs}ms): Discovered & verified all ${liveCount}/${LIVE_PEER_NODES.length} cross-origin HTTPS peer nodes from trongtinh9911.github.io/nexusagent-peer-nodes.`
+				: `Discovered ${liveCount}/${LIVE_PEER_NODES.length} live HTTPS peer nodes (${totalLatencyMs}ms).`,
+	};
 }

@@ -43,15 +43,17 @@ export class AgentRegistry {
 			inputs: Record<string, unknown>,
 		) => Promise<Record<string, unknown>>,
 	): void {
-		const defaultExecutor =
+		const existing = this.agents.get(card.id);
+		const resolvedExecutor =
 			executor ||
+			existing?.executor ||
 			(async (inputs) => ({
 				status: "simulated_success",
 				agentId: card.id,
 				inputsReceived: inputs,
 				message: `Executed capability in client sandbox without external telemetry.`,
 			}));
-		this.agents.set(card.id, { card, executor: defaultExecutor });
+		this.agents.set(card.id, { card, executor: resolvedExecutor });
 	}
 
 	public static resetToBuiltins(): void {

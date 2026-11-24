@@ -162,19 +162,20 @@ export function App() {
 						{/* Architecture diagram code block */}
 						<div className="bg-slate-950 p-4 rounded-lg border border-slate-800 font-mono text-xs text-slate-300 overflow-x-auto">
 							<span className="text-slate-500 uppercase block mb-2 text-[10px]">
-								Mesh Execution Flow (Topological DAG):
+								v2.1.0 Live Cross-Origin Peer Mesh &amp; Topological DAG:
 							</span>
 							<pre className="text-cyan-300 leading-relaxed">
 								{`User Prompt ──> Intent Planner ──> Dynamic DAG Compilation
                      │
+          Cross-Origin CORS HTTPS Peer Mesh (trongtinh9911.github.io/nexusagent-peer-nodes)
          ┌───────────┴───────────┐
          ▼                       ▼
 Stage 1: Intelligence    Stage 2: Parallel Audits
-(Cognizant Researcher)   (EcoTracker + PrivacyShield)
+(webresearcher/index.json) (ecotracker/telemetry.json + privacyshield/audit-rules.json)
          │                       │
          └───────────┬───────────┘
                      ▼
-Stage 3: Consensus & Veracity Certification (TruthMesh)
+Stage 3: Consensus & Veracity Certification (truthmesh/consensus.json)
                      │
                      ▼
 Cryptographic Merkle Proof & Verifiable Execution Receipt`}

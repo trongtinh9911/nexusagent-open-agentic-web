@@ -1,6 +1,6 @@
 {
 	"name": "open-agentic-web",
-	"version": "1.0.0",
+	"version": "2.1.0",
 	"description": "NexusAgent: Open, Decentralized In-Browser Agent Discovery & Mesh Orchestration Protocol",
 	"type": "module",
 	"scripts": {

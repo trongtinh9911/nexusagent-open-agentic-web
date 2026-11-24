@@ -47,13 +47,13 @@ export function resolveNetworkProvenance(
 
 	if (normalizedDeclared === "LIVE NETWORK FETCH") {
 		const sourceLabel = String(
-			out.verifiedBy ?? endpointUrl ?? "Public Web Endpoint",
+			endpointUrl ?? out.verifiedBy ?? "Public Web Endpoint",
 		);
 		return {
 			mode: "live_network_fetch",
 			badgeLabel: "LIVE NETWORK FETCH",
 			sourceDetail: httpStatus
-				? `HTTP ${httpStatus} live browser network probe (${sourceLabel})`
+				? `HTTP ${httpStatus} cross-origin CORS JSON fetch (${sourceLabel})`
 				: `Live browser network fetch succeeded (${sourceLabel})`,
 			httpStatus,
 			endpointUrl,

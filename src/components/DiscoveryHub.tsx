@@ -21,7 +21,10 @@ import { AgentRegistry } from "../agents/builtins";
 import type { AgentCard } from "../types/agent-card";
 import {
 	discoverLiveManifest,
+	discoverPeerMeshNodes,
+	LIVE_PEER_NODES,
 	type ManifestDiscoveryResult,
+	PEER_ENDPOINTS,
 	SELF_MANIFEST_PATH,
 } from "./discoverManifest";
 
@@ -38,12 +41,14 @@ export const DiscoveryHub: React.FC<DiscoveryHubProps> = ({ onAgentAdded }) => {
 	// Import / live discovery state
 	const [importUrl, setImportUrl] = useState("");
 	const [isDiscoveringSelf, setIsDiscoveringSelf] = useState(false);
+	const [isDiscoveringPeers, setIsDiscoveringPeers] = useState(false);
 	const [isDiscoveringUrl, setIsDiscoveringUrl] = useState(false);
 	const [discoveryResult, setDiscoveryResult] =
 		useState<ManifestDiscoveryResult | null>(null);
 
 	const allTags = [
 		"all",
+		"live-peer",
 		"sustainability",
 		"privacy",
 		"consensus",
@@ -79,6 +84,50 @@ export const DiscoveryHub: React.FC<DiscoveryHubProps> = ({ onAgentAdded }) => {
 			}
 		} finally {
 			setIsDiscoveringSelf(false);
+		}
+	};
+
+	const handleDiscoverPeerMesh = async () => {
+		setIsDiscoveringPeers(true);
+		setDiscoveryResult(null);
+		try {
+			const summary = await discoverPeerMeshNodes();
+			const firstCard = summary.results.find((r) => r.card)?.card;
+			setDiscoveryResult({
+				ok: summary.ok,
+				mode: summary.liveCount > 0 ? "LIVE NETWORK FETCH" : "CORS FALLBACK",
+				url: PEER_ENDPOINTS.meshDirectory,
+				httpStatus: summary.liveCount > 0 ? 200 : undefined,
+				latencyMs: summary.totalLatencyMs,
+				card: firstCard,
+				notice: summary.notice,
+				error: summary.ok
+					? undefined
+					: "Could not reach live HTTPS peer mesh endpoints.",
+			});
+			if (summary.ok) {
+				setAgents(AgentRegistry.getAll());
+				onAgentAdded?.();
+			}
+		} finally {
+			setIsDiscoveringPeers(false);
+		}
+	};
+
+	const handleDiscoverSpecificUrl = async (targetUrl: string) => {
+		setDiscoveryResult(null);
+		setIsDiscoveringUrl(true);
+		try {
+			const res = await discoverLiveManifest(targetUrl, {
+				allowCorsFallback: true,
+			});
+			setDiscoveryResult(res);
+			if (res.ok) {
+				setAgents(AgentRegistry.getAll());
+				onAgentAdded?.();
+			}
+		} finally {
+			setIsDiscoveringUrl(false);
 		}
 	};
 
@@ -128,19 +177,32 @@ export const DiscoveryHub: React.FC<DiscoveryHubProps> = ({ onAgentAdded }) => {
 						</p>
 					</div>
 
-					{/* 1-Click Self-Manifest + URL Discovery Controls */}
+					{/* 1-Click Peer Mesh + Self-Manifest + URL Discovery Controls */}
 					<div className="flex flex-wrap items-center gap-2 w-full lg:w-auto">
+						<button
+							onClick={handleDiscoverPeerMesh}
+							disabled={isDiscoveringPeers}
+							className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition flex items-center gap-1.5 shrink-0 shadow-sm"
+						>
+							{isDiscoveringPeers ? (
+								<RefreshCw className="w-3.5 h-3.5 animate-spin" />
+							) : (
+								<Globe className="w-3.5 h-3.5" />
+							)}
+							Discover Live Peer Mesh (4 HTTPS)
+						</button>
+
 						<button
 							onClick={handleDiscoverSelfManifest}
 							disabled={isDiscoveringSelf}
-							className="px-3.5 py-1.5 rounded-lg text-xs font-bold bg-emerald-500 hover:bg-emerald-400 text-slate-950 transition flex items-center gap-1.5 shrink-0 shadow-sm"
+							className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-emerald-300 border border-emerald-500/30 transition flex items-center gap-1.5 shrink-0"
 						>
 							{isDiscoveringSelf ? (
 								<RefreshCw className="w-3.5 h-3.5 animate-spin" />
 							) : (
 								<Radio className="w-3.5 h-3.5" />
 							)}
-							Discover Live Self-Manifest
+							Self-Manifest
 						</button>
 
 						<input
@@ -148,8 +210,8 @@ export const DiscoveryHub: React.FC<DiscoveryHubProps> = ({ onAgentAdded }) => {
 							value={importUrl}
 							onChange={(e) => setImportUrl(e.target.value)}
 							onKeyDown={(e) => e.key === "Enter" && handleDiscoverUrl()}
-							placeholder="https://example.org/.well-known/agent.json"
-							className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500 font-mono w-64"
+							placeholder={PEER_ENDPOINTS.ecotracker.manifestUrl}
+							className="bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 placeholder-slate-600 focus:outline-none focus:border-cyan-500 font-mono w-72"
 						/>
 						<button
 							onClick={handleDiscoverUrl}
@@ -164,6 +226,32 @@ export const DiscoveryHub: React.FC<DiscoveryHubProps> = ({ onAgentAdded }) => {
 							Discover URL
 						</button>
 					</div>
+				</div>
+
+				{/* Quick Live Cross-Origin HTTPS Peer Endpoints */}
+				<div className="flex flex-wrap items-center gap-1.5 mb-3 text-[11px]">
+					<span className="text-slate-500 font-mono uppercase text-[10px]">
+						Live CORS Peer Nodes:
+					</span>
+					<button
+						onClick={() =>
+							handleDiscoverSpecificUrl(PEER_ENDPOINTS.meshDirectory)
+						}
+						disabled={isDiscoveringUrl}
+						className="px-2 py-0.5 rounded bg-slate-950 hover:bg-slate-800 text-emerald-300 border border-emerald-500/30 font-mono transition"
+					>
+						Mesh Directory
+					</button>
+					{LIVE_PEER_NODES.map((peer) => (
+						<button
+							key={peer.slug}
+							onClick={() => handleDiscoverSpecificUrl(peer.manifestUrl)}
+							disabled={isDiscoveringUrl}
+							className="px-2 py-0.5 rounded bg-slate-950 hover:bg-slate-800 text-cyan-300 border border-slate-800 hover:border-cyan-500/40 font-mono transition"
+						>
+							{peer.slug}/.well-known/agent.json
+						</button>
+					))}
 				</div>
 
 				{/* Live Discovery Outcome Banner */}

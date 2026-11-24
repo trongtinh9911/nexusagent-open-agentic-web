@@ -2,7 +2,7 @@
 	"schemaVersion": "1.0.0",
 	"id": "did:web:nexusagent.org:agents:mesh-coordinator",
 	"name": "NexusAgent Mesh Coordinator",
-	"version": "1.0.0",
+	"version": "2.1.0",
 	"description": "Decentralized in-browser orchestrator discovering, verifying, and routing tasks across open web agents.",
 	"icon": "network",
 	"tags": [

@@ -79,7 +79,7 @@ export const Navigation: React.FC<NavigationProps> = ({
 								NexusAgent
 							</h1>
 							<span className="text-[10px] uppercase font-mono px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-								v1.0.0 Open Spec
+								v2.1.0 Open Spec
 							</span>
 						</div>
 						<p className="text-xs text-slate-400">

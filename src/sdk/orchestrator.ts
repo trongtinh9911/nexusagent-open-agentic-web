@@ -7,6 +7,7 @@ import type {
 	VerifiableReceipt,
 } from "../types/mesh";
 import { AgentCrypto } from "./crypto";
+import { extractTargetUrlFromGoal } from "./liveFetcher";
 import type { LLMConfig } from "./llm-provider";
 import type { PermissionController } from "./permissions";
 import { WebMCPClient } from "./web-mcp";
@@ -76,6 +77,7 @@ export class MeshOrchestrator {
 
 		// Stage 2: Parallel Audits (Eco & Privacy)
 		const auditDeps = tasks.map((t) => t.id);
+		const resolvedTargetUrl = extractTargetUrlFromGoal(userGoal);
 
 		if (wantsEco) {
 			tasks.push({
@@ -84,11 +86,9 @@ export class MeshOrchestrator {
 				capabilityId: "compute_carbon_footprint",
 				title: "Audit Environmental & Energy Impact",
 				description:
-					"Calculates page transfer weight, kilowatt-hours, and CO2 emissions per interaction.",
+					"Calculates page transfer weight, kilowatt-hours, and CO2 emissions via live EcoTracker peer telemetry.",
 				inputs: {
-					targetUrl: userGoal.includes("http")
-						? userGoal
-						: "https://open-agentic-web.org",
+					targetUrl: resolvedTargetUrl,
 					monthlyVisits: 100000,
 				},
 				dependencies: auditDeps,
@@ -104,11 +104,9 @@ export class MeshOrchestrator {
 				capabilityId: "audit_trackers_and_pii",
 				title: "Inspect Privacy Policies & Tracker Leaks",
 				description:
-					"Identifies third-party tracking scripts, cookie compliance, and data exfiltration vectors.",
+					"Evaluates third-party tracking scripts, cookie compliance, and GPC policies via live PrivacyShield peer rules.",
 				inputs: {
-					targetUrl: userGoal.includes("http")
-						? userGoal
-						: "https://open-agentic-web.org",
+					targetUrl: resolvedTargetUrl,
 					auditLevel: "strict",
 				},
 				dependencies: auditDeps,

@@ -49,7 +49,7 @@ export const MeshOrchestratorView: React.FC<MeshOrchestratorViewProps> = ({
 	onLlmConfigChange,
 }) => {
 	const [userGoal, setUserGoal] = useState<string>(
-		"Audit e-commerce site for carbon emissions, third-party tracking scripts, and verify claims",
+		"Research and audit Open Agentic Web peer mesh for carbon emissions, privacy tracking scripts, and verify claims",
 	);
 	const [currentPlan, setCurrentPlan] = useState<MeshPlan | null>(null);
 	const [isExecuting, setIsExecuting] = useState(false);
@@ -69,24 +69,24 @@ export const MeshOrchestratorView: React.FC<MeshOrchestratorViewProps> = ({
 
 	const presetGoals = [
 		{
-			label: "Full Web Audit (Eco + Privacy + Fact)",
+			label: "Full Live Peer Audit (4 HTTPS Nodes)",
 			prompt:
-				"Comprehensive audit for carbon emissions, third-party tracking scripts, and verify claims veracity",
+				"Research and audit Open Agentic Web peer mesh for carbon emissions, privacy tracking scripts, and verify claims",
 		},
 		{
-			label: "Green Computing Footprint",
+			label: "Green Computing Footprint (EcoTracker Live)",
 			prompt:
-				"Calculate carbon footprint and energy kilowatt-hours for cloud web workflows",
+				"Calculate carbon footprint and energy kilowatt-hours across live peer telemetry",
 		},
 		{
-			label: "Privacy & Anti-Tracking Shield",
+			label: "Privacy & Anti-Tracking Shield (Live Rules)",
 			prompt:
-				"Audit target website for invasive canvas fingerprinting, meta trackers, and PII leaks",
+				"Audit privacy policies, tracking scripts, and Global Privacy Control compliance",
 		},
 		{
-			label: "Decentralized Research Synthesis",
+			label: "Test CORS-Blocked Domain (Honest Fallback)",
 			prompt:
-				"Synthesize decentralized agent web standards, W3C DID, and WebMCP interoperability",
+				"Audit https://example.com for carbon emissions and third-party privacy trackers",
 		},
 	];
 
@@ -133,8 +133,12 @@ export const MeshOrchestratorView: React.FC<MeshOrchestratorViewProps> = ({
 						);
 					} else if (updatedTask.status === "completed") {
 						const prov = resolveNetworkProvenance(updatedTask);
+						const httpTag = prov?.httpStatus ? ` HTTP ${prov.httpStatus}` : "";
+						const endpointTag = prov?.endpointUrl
+							? ` -> ${prov.endpointUrl}`
+							: "";
 						addLog(
-							`[SUCCESS] Task '${updatedTask.id}' finished in ${updatedTask.executionTimeMs}ms [${prov?.badgeLabel ?? "CORS FALLBACK"}].`,
+							`[SUCCESS] Task '${updatedTask.id}' finished in ${updatedTask.executionTimeMs}ms [${prov?.badgeLabel ?? "CORS FALLBACK"}${httpTag}]${endpointTag}`,
 						);
 					} else if (updatedTask.status === "denied") {
 						addLog(

@@ -1,9 +1,10 @@
 {
-	"networkVersion": "1.0.0",
+	"networkVersion": "2.1.0",
 	"name": "Open Agentic Web Directory & Federation Mesh",
-	"updatedAt": "2026-11-23T14:30:00Z",
+	"updatedAt": "2026-11-24T08:00:00Z",
 	"protocol": "webmcp/1.0",
 	"consensus": "nanda/0.2",
+	"peerMeshDirectoryUrl": "https://trongtinh9911.github.io/nexusagent-peer-nodes/.well-known/agent.json",
 	"nodes": [
 		{
 			"id": "did:web:nexusagent.org:agents:mesh-coordinator",
@@ -15,39 +16,43 @@
 			"protocols": ["webmcp/1.0", "nanda/0.2", "w3c-did/v1"]
 		},
 		{
-			"id": "did:web:eco-tracker.org",
-			"name": "EcoTracker Social Good Agent",
-			"manifestUrl": "https://eco-tracker.org/.well-known/agent.json",
+			"id": "did:web:trongtinh9911.github.io:nexusagent-peer-nodes:ecotracker",
+			"name": "EcoTracker Social Good Peer Node",
+			"manifestUrl": "https://trongtinh9911.github.io/nexusagent-peer-nodes/ecotracker/.well-known/agent.json",
+			"dataUrl": "https://trongtinh9911.github.io/nexusagent-peer-nodes/ecotracker/telemetry.json",
 			"category": "Sustainability",
 			"trustScore": 0.98,
 			"sandbox": "strict",
 			"protocols": ["webmcp/1.0", "nanda/0.2", "w3c-did/v1"]
 		},
 		{
-			"id": "did:web:privacy-shield.org",
-			"name": "PrivacyShield Guardian Agent",
-			"manifestUrl": "https://privacy-shield.org/.well-known/agent.json",
+			"id": "did:web:trongtinh9911.github.io:nexusagent-peer-nodes:privacyshield",
+			"name": "PrivacyShield Guardian Peer Node",
+			"manifestUrl": "https://trongtinh9911.github.io/nexusagent-peer-nodes/privacyshield/.well-known/agent.json",
+			"dataUrl": "https://trongtinh9911.github.io/nexusagent-peer-nodes/privacyshield/audit-rules.json",
 			"category": "Security & Privacy",
-			"trustScore": 0.97,
+			"trustScore": 0.99,
 			"sandbox": "strict",
 			"protocols": ["webmcp/1.0", "nanda/0.2", "w3c-did/v1"]
 		},
 		{
-			"id": "did:web:truth-consensus.org",
-			"name": "TruthMesh Fact Checker",
-			"manifestUrl": "https://truth-consensus.org/.well-known/agent.json",
+			"id": "did:web:trongtinh9911.github.io:nexusagent-peer-nodes:truthmesh",
+			"name": "TruthMesh Consensus Peer Node",
+			"manifestUrl": "https://trongtinh9911.github.io/nexusagent-peer-nodes/truthmesh/.well-known/agent.json",
+			"dataUrl": "https://trongtinh9911.github.io/nexusagent-peer-nodes/truthmesh/consensus.json",
 			"category": "Consensus & Verification",
-			"trustScore": 0.95,
-			"sandbox": "strict",
+			"trustScore": 0.99,
+			"sandbox": "isolated",
 			"protocols": ["webmcp/1.0", "nanda/0.2", "w3c-did/v1"]
 		},
 		{
-			"id": "did:web:cognizant-research.org",
-			"name": "Cognizant Web Intelligence Agent",
-			"manifestUrl": "https://cognizant-research.org/.well-known/agent.json",
+			"id": "did:web:trongtinh9911.github.io:nexusagent-peer-nodes:webresearcher",
+			"name": "WebResearcher Intelligence Peer Node",
+			"manifestUrl": "https://trongtinh9911.github.io/nexusagent-peer-nodes/webresearcher/.well-known/agent.json",
+			"dataUrl": "https://trongtinh9911.github.io/nexusagent-peer-nodes/webresearcher/index.json",
 			"category": "Research & Synthesis",
-			"trustScore": 0.96,
-			"sandbox": "strict",
+			"trustScore": 0.99,
+			"sandbox": "isolated",
 			"protocols": ["webmcp/1.0", "nanda/0.2", "w3c-did/v1"]
 		}
 	]
